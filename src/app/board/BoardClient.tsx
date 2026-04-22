@@ -105,6 +105,9 @@ function DraggableCard({ company, onClick }: { company: CompanyCard; onClick: ()
     0
   );
   const commissionCents = Math.round((totalMonthlyCents * company.commissionPercentage) / 100);
+  const netEarningsCents = totalMonthlyCents - commissionCents;
+
+  const isClient = company.stage === "client";
 
   const style: React.CSSProperties = transform
     ? {
@@ -128,22 +131,30 @@ function DraggableCard({ company, onClick }: { company: CompanyCard; onClick: ()
       }
     >
       <div className="flex items-start justify-between gap-2">
-        <div>
+        <div className="flex-1 min-w-0">
           <div className="text-sm font-semibold text-slate-900">{company.name}</div>
-          <div className="mt-1 text-xs text-slate-600">
-            {lineCount} {lineCount === 1 ? "line" : "lines"} · {formatEURFromCents(totalMonthlyCents)}/mo
-          </div>
-          {company.commissionPercentage > 0 ? (
-            <div className="mt-0.5 text-xs font-medium text-green-700">
-              {company.commissionPercentage}% commission · {formatEURFromCents(commissionCents)}/mo
+          {isClient && (
+            <div className="mt-1.5 flex items-center gap-2 text-xs">
+              <span className="font-medium text-slate-700">{formatEURFromCents(totalMonthlyCents)}</span>
+              <span className="text-slate-400">·</span>
+              <span className="text-slate-500">{company.commissionPercentage}%</span>
+              <span className="text-slate-400">→</span>
+              <span className="font-semibold text-green-700">{formatEURFromCents(netEarningsCents)}</span>
             </div>
-          ) : null}
+          )}
         </div>
-        <div className="flex items-center gap-2 text-slate-700">
-          {company.hasDueOutreach ? <Mail className="h-4 w-4" /> : null}
-          {company.hasDueReminder ? <Bell className="h-4 w-4" /> : null}
-          {company.hasDueRenewal ? <RotateCw className="h-4 w-4" /> : null}
-          {hasMissingInvoice ? <Receipt className="h-4 w-4" /> : null}
+        <div className="flex flex-col items-end gap-1.5">
+          {isClient && (
+            <div className="flex items-center justify-center min-w-[24px] h-5 px-1.5 rounded-md bg-slate-100 text-xs font-semibold text-slate-700">
+              {lineCount}
+            </div>
+          )}
+          <div className="flex items-center gap-1.5 text-slate-500">
+            {company.hasDueOutreach ? <Mail className="h-3.5 w-3.5" /> : null}
+            {company.hasDueReminder ? <Bell className="h-3.5 w-3.5" /> : null}
+            {company.hasDueRenewal ? <RotateCw className="h-3.5 w-3.5" /> : null}
+            {hasMissingInvoice ? <Receipt className="h-3.5 w-3.5" /> : null}
+          </div>
         </div>
       </div>
     </button>
@@ -158,6 +169,20 @@ function toDateTimeLocalValue(d: Date) {
   const hour = pad(d.getHours());
   const min = pad(d.getMinutes());
   return `${year}-${month}-${day}T${hour}:${min}`;
+}
+
+function toDateValue(d: Date) {
+  const pad = (n: number) => String(n).padStart(2, "0");
+  const year = d.getFullYear();
+  const month = pad(d.getMonth() + 1);
+  const day = pad(d.getDate());
+  return `${year}-${month}-${day}`;
+}
+
+function formatDateDisplay(dateStr: string) {
+  const d = new Date(dateStr);
+  if (Number.isNaN(d.getTime())) return dateStr;
+  return d.toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" });
 }
 
 type TransitionState = {
@@ -193,27 +218,27 @@ function TransitionWizard({
   const isOpen = Boolean(transition?.open);
   const now = new Date();
 
-  const [occurredAt, setOccurredAt] = useState(toDateTimeLocalValue(now));
+  const [occurredAt, setOccurredAt] = useState(toDateValue(now));
   const [strategyId, setStrategyId] = useState("");
-  const [proposalDate, setProposalDate] = useState(toDateTimeLocalValue(now));
-  const [trialStartDate, setTrialStartDate] = useState(toDateTimeLocalValue(now));
+  const [proposalDate, setProposalDate] = useState(toDateValue(now));
+  const [trialStartDate, setTrialStartDate] = useState(toDateValue(now));
 
   const [lineName, setLineName] = useState("");
-  const [contractStartDate, setContractStartDate] = useState(toDateTimeLocalValue(now));
-  const [contractEndDate, setContractEndDate] = useState(toDateTimeLocalValue(now));
+  const [contractStartDate, setContractStartDate] = useState(toDateValue(now));
+  const [contractEndDate, setContractEndDate] = useState(toDateValue(now));
   const [pricePerMonth, setPricePerMonth] = useState("");
 
   useEffect(() => {
     if (!isOpen) return;
     const n = new Date();
-    setOccurredAt(toDateTimeLocalValue(n));
+    setOccurredAt(toDateValue(n));
     setStrategyId("");
-    setProposalDate(toDateTimeLocalValue(n));
-    setTrialStartDate(toDateTimeLocalValue(n));
+    setProposalDate(toDateValue(n));
+    setTrialStartDate(toDateValue(n));
 
     setLineName("");
-    setContractStartDate(toDateTimeLocalValue(n));
-    setContractEndDate(toDateTimeLocalValue(n));
+    setContractStartDate(toDateValue(n));
+    setContractEndDate(toDateValue(n));
     setPricePerMonth("");
   }, [isOpen]);
 
@@ -240,7 +265,7 @@ function TransitionWizard({
         <div className="grid gap-3">
           <div>
             <div className="text-xs text-slate-600">Occurred at</div>
-            <Input type="datetime-local" value={occurredAt} onChange={(e) => setOccurredAt(e.target.value)} />
+            <Input type="date" value={occurredAt} onChange={(e) => setOccurredAt(e.target.value)} />
           </div>
 
           {needsStrategy ? (
@@ -264,14 +289,14 @@ function TransitionWizard({
           {needsProposalDate ? (
             <div>
               <div className="text-xs text-slate-600">Proposal date</div>
-              <Input type="datetime-local" value={proposalDate} onChange={(e) => setProposalDate(e.target.value)} />
+              <Input type="date" value={proposalDate} onChange={(e) => setProposalDate(e.target.value)} />
             </div>
           ) : null}
 
           {needsTrialStart ? (
             <div>
               <div className="text-xs text-slate-600">Trial start date</div>
-              <Input type="datetime-local" value={trialStartDate} onChange={(e) => setTrialStartDate(e.target.value)} />
+              <Input type="date" value={trialStartDate} onChange={(e) => setTrialStartDate(e.target.value)} />
             </div>
           ) : null}
 
@@ -292,7 +317,7 @@ function TransitionWizard({
                 <div>
                   <div className="text-xs text-slate-600">Contract start</div>
                   <Input
-                    type="datetime-local"
+                    type="date"
                     value={contractStartDate}
                     onChange={(e) => setContractStartDate(e.target.value)}
                   />
@@ -300,7 +325,7 @@ function TransitionWizard({
                 <div>
                   <div className="text-xs text-slate-600">Contract end</div>
                   <Input
-                    type="datetime-local"
+                    type="date"
                     value={contractEndDate}
                     onChange={(e) => setContractEndDate(e.target.value)}
                   />
@@ -400,13 +425,13 @@ function CompanyModal({
   const [outreachSubject, setOutreachSubject] = useState<string | null>(null);
   const [outreachBody, setOutreachBody] = useState<string | null>(null);
   const [outreachDueAt, setOutreachDueAt] = useState<string | null>(company.nextOutreachDueAt);
-  const [outreachAcknowledgedAt, setOutreachAcknowledgedAt] = useState(toDateTimeLocalValue(new Date()));
+  const [outreachAcknowledgedAt, setOutreachAcknowledgedAt] = useState(toDateValue(new Date()));
 
   const [lines, setLines] = useState<CompanyLine[]>(company.lines);
   const [creatingLine, setCreatingLine] = useState(false);
   const [newLineName, setNewLineName] = useState("");
-  const [newContractStartDate, setNewContractStartDate] = useState(toDateTimeLocalValue(new Date()));
-  const [newContractEndDate, setNewContractEndDate] = useState(toDateTimeLocalValue(new Date()));
+  const [newContractStartDate, setNewContractStartDate] = useState(toDateValue(new Date()));
+  const [newContractEndDate, setNewContractEndDate] = useState(toDateValue(new Date()));
   const [newPricePerMonth, setNewPricePerMonth] = useState("");
 
   const [editingContractId, setEditingContractId] = useState<string | null>(null);
@@ -437,7 +462,7 @@ function CompanyModal({
       setOutreachDueAt(companyNextOutreachDueAt);
       setOutreachSubject(null);
       setOutreachBody(null);
-      setOutreachAcknowledgedAt(toDateTimeLocalValue(new Date()));
+      setOutreachAcknowledgedAt(toDateValue(new Date()));
       setLines(companyLinesArr);
       return;
     }
@@ -771,7 +796,7 @@ function CompanyModal({
                     </div>
                     <div className="flex gap-2">
                       <Input
-                        type="datetime-local"
+                        type="date"
                         value={outreachAcknowledgedAt}
                         onChange={(e) => setOutreachAcknowledgedAt(e.target.value)}
                       />
@@ -943,7 +968,7 @@ function CompanyModal({
                                     <div>
                                       <div className="text-xs text-slate-600">Start</div>
                                       <Input
-                                        type="datetime-local"
+                                        type="date"
                                         value={editingContractStart}
                                         onChange={(e) => setEditingContractStart(e.target.value)}
                                       />
@@ -951,7 +976,7 @@ function CompanyModal({
                                     <div>
                                       <div className="text-xs text-slate-600">End</div>
                                       <Input
-                                        type="datetime-local"
+                                        type="date"
                                         value={editingContractEnd}
                                         onChange={(e) => setEditingContractEnd(e.target.value)}
                                       />
@@ -993,7 +1018,7 @@ function CompanyModal({
                               ) : (
                                 <div className="flex items-center justify-between gap-2">
                                   <div>
-                                    {c.startDate} → {c.endDate} · {formatEURFromCents(c.pricePerMonthCents)}/mo
+                                    {formatDateDisplay(c.startDate)} → {formatDateDisplay(c.endDate)} · {formatEURFromCents(c.pricePerMonthCents)}/mo
                                   </div>
                                   {isEditing ? (
                                     <Button
@@ -1001,8 +1026,8 @@ function CompanyModal({
                                       variant="secondary"
                                       onClick={() => {
                                         setEditingContractId(c.id);
-                                        setEditingContractStart(toDateTimeLocalValue(new Date(c.startDate)));
-                                        setEditingContractEnd(toDateTimeLocalValue(new Date(c.endDate)));
+                                        setEditingContractStart(toDateValue(new Date(c.startDate)));
+                                        setEditingContractEnd(toDateValue(new Date(c.endDate)));
                                         setEditingContractPrice(String((c.pricePerMonthCents / 100).toFixed(2)));
                                       }}
                                     >
@@ -1032,7 +1057,7 @@ function CompanyModal({
                   <div>
                     <div className="text-xs text-slate-600">Contract start</div>
                     <Input
-                      type="datetime-local"
+                      type="date"
                       value={newContractStartDate}
                       onChange={(e) => setNewContractStartDate(e.target.value)}
                     />
@@ -1040,7 +1065,7 @@ function CompanyModal({
                   <div>
                     <div className="text-xs text-slate-600">Contract end</div>
                     <Input
-                      type="datetime-local"
+                      type="date"
                       value={newContractEndDate}
                       onChange={(e) => setNewContractEndDate(e.target.value)}
                     />
