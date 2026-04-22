@@ -334,17 +334,22 @@ function CompanyModal({
   company,
   open,
   onOpenChange,
-  onCompanyPatch
+  onCompanyPatch,
+  onCompanyDelete
 }: {
   company: CompanyCard;
   open: boolean;
   onOpenChange: (v: boolean) => void;
   onCompanyPatch: (companyId: string, patch: Partial<CompanyCard>) => void;
+  onCompanyDelete: (companyId: string) => void;
 }) {
+
+  const [isEditing, setIsEditing] = useState(false);
 
   const [name, setName] = useState(company.name);
   const [notes, setNotes] = useState(company.notes ?? "");
   const [savingCompany, setSavingCompany] = useState(false);
+  const [deletingCompany, setDeletingCompany] = useState(false);
 
   const [contacts, setContacts] = useState<CompanyContact[]>(company.contacts);
   const [newContactName, setNewContactName] = useState("");
@@ -376,6 +381,7 @@ function CompanyModal({
 
   useEffect(() => {
     // sync modal state when switching companies
+    setIsEditing(false);
     setName(companyName);
     setNotes(companyNotes ?? "");
     setContacts(companyContacts);
@@ -413,6 +419,22 @@ function CompanyModal({
       onCompanyPatch(company.id, { name, notes });
     } finally {
       setSavingCompany(false);
+    }
+  }
+
+  async function deleteCompany() {
+    const ok = window.confirm(`Delete "${company.name}"? This cannot be undone.`);
+    if (!ok) return;
+
+    setDeletingCompany(true);
+    try {
+      const res = await fetch(`/api/companies/${company.id}`, { method: "DELETE" });
+      if (!res.ok) return;
+
+      onCompanyDelete(company.id);
+      onOpenChange(false);
+    } finally {
+      setDeletingCompany(false);
     }
   }
 
@@ -494,10 +516,38 @@ function CompanyModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
+      <DialogContent className="max-h-[85vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>{name}</DialogTitle>
-          <DialogDescription>{company.stage}</DialogDescription>
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <DialogTitle>{name}</DialogTitle>
+              <DialogDescription>{company.stage}</DialogDescription>
+            </div>
+            <div className="flex gap-2">
+              {isEditing ? (
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={() => {
+                    setIsEditing(false);
+                    setName(companyName);
+                    setNotes(companyNotes ?? "");
+                    setContacts(companyContacts);
+                    setLines(companyLinesArr);
+                  }}
+                >
+                  Cancel
+                </Button>
+              ) : (
+                <Button type="button" variant="secondary" onClick={() => setIsEditing(true)}>
+                  Edit
+                </Button>
+              )}
+              <Button variant="danger" type="button" onClick={deleteCompany} disabled={deletingCompany}>
+                {deletingCompany ? "Deleting…" : "Delete"}
+              </Button>
+            </div>
+          </div>
         </DialogHeader>
 
         <div className="grid gap-3">
@@ -506,17 +556,24 @@ function CompanyModal({
             <div className="mt-2 grid gap-2">
               <div>
                 <div className="text-xs text-slate-600">Name</div>
-                <Input value={name} onChange={(e) => setName(e.target.value)} />
+                <Input value={name} readOnly={!isEditing} onChange={(e) => setName(e.target.value)} />
               </div>
               <div>
                 <div className="text-xs text-slate-600">Notes</div>
-                <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} className="min-h-[90px]" />
+                <Textarea
+                  value={notes}
+                  readOnly={!isEditing}
+                  onChange={(e) => setNotes(e.target.value)}
+                  className="min-h-[90px]"
+                />
               </div>
-              <div>
-                <Button type="button" onClick={saveCompany} disabled={savingCompany}>
-                  {savingCompany ? "Saving…" : "Save"}
-                </Button>
-              </div>
+              {isEditing ? (
+                <div>
+                  <Button type="button" onClick={saveCompany} disabled={savingCompany}>
+                    {savingCompany ? "Saving…" : "Save"}
+                  </Button>
+                </div>
+              ) : null}
             </div>
           </div>
         </div>
@@ -590,6 +647,7 @@ function CompanyModal({
                           <div className="text-xs text-slate-600">Name</div>
                           <Input
                             value={c.name ?? ""}
+                            readOnly={!isEditing}
                             onChange={(e) => updateContact(c.id, { name: e.target.value || null })}
                           />
                         </div>
@@ -597,6 +655,7 @@ function CompanyModal({
                           <div className="text-xs text-slate-600">Role</div>
                           <Input
                             value={c.role ?? ""}
+                            readOnly={!isEditing}
                             onChange={(e) => updateContact(c.id, { role: e.target.value || null })}
                           />
                         </div>
@@ -606,6 +665,7 @@ function CompanyModal({
                           <div className="text-xs text-slate-600">Email</div>
                           <Input
                             value={c.email ?? ""}
+                            readOnly={!isEditing}
                             onChange={(e) => updateContact(c.id, { email: e.target.value || null })}
                           />
                         </div>
@@ -613,6 +673,7 @@ function CompanyModal({
                           <div className="text-xs text-slate-600">Phone</div>
                           <Input
                             value={c.phone ?? ""}
+                            readOnly={!isEditing}
                             onChange={(e) => updateContact(c.id, { phone: e.target.value || null })}
                           />
                         </div>
@@ -622,13 +683,16 @@ function CompanyModal({
                           <input
                             type="checkbox"
                             checked={c.isPrimary}
+                            disabled={!isEditing}
                             onChange={(e) => updateContact(c.id, { isPrimary: e.target.checked })}
                           />{" "}
                           Primary
                         </label>
-                        <Button variant="danger" type="button" onClick={() => deleteContact(c.id)}>
-                          Delete
-                        </Button>
+                        {isEditing ? (
+                          <Button variant="danger" type="button" onClick={() => deleteContact(c.id)}>
+                            Delete
+                          </Button>
+                        ) : null}
                       </div>
                     </div>
                   </div>
@@ -636,32 +700,34 @@ function CompanyModal({
               </div>
             )}
 
-            <div className="mt-3 rounded-lg border border-slate-200 bg-white p-3">
-              <div className="text-sm font-semibold text-slate-900">Add contact</div>
-              <div className="mt-2 grid gap-2" style={{ gridTemplateColumns: "1fr 1fr" }}>
-                <div>
-                  <div className="text-xs text-slate-600">Name</div>
-                  <Input value={newContactName} onChange={(e) => setNewContactName(e.target.value)} />
+            {isEditing ? (
+              <div className="mt-3 rounded-lg border border-slate-200 bg-white p-3">
+                <div className="text-sm font-semibold text-slate-900">Add contact</div>
+                <div className="mt-2 grid gap-2" style={{ gridTemplateColumns: "1fr 1fr" }}>
+                  <div>
+                    <div className="text-xs text-slate-600">Name</div>
+                    <Input value={newContactName} onChange={(e) => setNewContactName(e.target.value)} />
+                  </div>
+                  <div>
+                    <div className="text-xs text-slate-600">Role</div>
+                    <Input value={newContactRole} onChange={(e) => setNewContactRole(e.target.value)} />
+                  </div>
+                  <div>
+                    <div className="text-xs text-slate-600">Email</div>
+                    <Input value={newContactEmail} onChange={(e) => setNewContactEmail(e.target.value)} />
+                  </div>
+                  <div>
+                    <div className="text-xs text-slate-600">Phone</div>
+                    <Input value={newContactPhone} onChange={(e) => setNewContactPhone(e.target.value)} />
+                  </div>
                 </div>
-                <div>
-                  <div className="text-xs text-slate-600">Role</div>
-                  <Input value={newContactRole} onChange={(e) => setNewContactRole(e.target.value)} />
-                </div>
-                <div>
-                  <div className="text-xs text-slate-600">Email</div>
-                  <Input value={newContactEmail} onChange={(e) => setNewContactEmail(e.target.value)} />
-                </div>
-                <div>
-                  <div className="text-xs text-slate-600">Phone</div>
-                  <Input value={newContactPhone} onChange={(e) => setNewContactPhone(e.target.value)} />
+                <div className="mt-3">
+                  <Button type="button" onClick={createContact} disabled={creatingContact}>
+                    {creatingContact ? "Adding…" : "Add"}
+                  </Button>
                 </div>
               </div>
-              <div className="mt-3">
-                <Button type="button" onClick={createContact} disabled={creatingContact}>
-                  {creatingContact ? "Adding…" : "Add"}
-                </Button>
-              </div>
-            </div>
+            ) : null}
           </div>
 
           <div>
@@ -678,7 +744,9 @@ function CompanyModal({
                         <input
                           type="checkbox"
                           checked={l.isInvoiced}
+                          disabled={!isEditing}
                           onChange={async (e) => {
+                            if (!isEditing) return;
                             const next = e.target.checked;
                             setLines((prev) => {
                               const nextLines = prev.map((x) => (x.id === l.id ? { ...x, isInvoiced: next } : x));
@@ -711,76 +779,78 @@ function CompanyModal({
               </div>
             )}
 
-            <div className="mt-3 rounded-lg border border-slate-200 bg-white p-3">
-              <div className="text-sm font-semibold text-slate-900">Add line</div>
-              <div className="mt-2 grid gap-2" style={{ gridTemplateColumns: "1fr 1fr" }}>
-                <div style={{ gridColumn: "1 / span 2" }}>
-                  <div className="text-xs text-slate-600">Line name</div>
-                  <Input value={newLineName} onChange={(e) => setNewLineName(e.target.value)} />
+            {isEditing ? (
+              <div className="mt-3 rounded-lg border border-slate-200 bg-white p-3">
+                <div className="text-sm font-semibold text-slate-900">Add line</div>
+                <div className="mt-2 grid gap-2" style={{ gridTemplateColumns: "1fr 1fr" }}>
+                  <div style={{ gridColumn: "1 / span 2" }}>
+                    <div className="text-xs text-slate-600">Line name</div>
+                    <Input value={newLineName} onChange={(e) => setNewLineName(e.target.value)} />
+                  </div>
+                  <div>
+                    <div className="text-xs text-slate-600">Contract start</div>
+                    <Input
+                      type="datetime-local"
+                      value={newContractStartDate}
+                      onChange={(e) => setNewContractStartDate(e.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <div className="text-xs text-slate-600">Contract end</div>
+                    <Input
+                      type="datetime-local"
+                      value={newContractEndDate}
+                      onChange={(e) => setNewContractEndDate(e.target.value)}
+                    />
+                  </div>
+                  <div style={{ gridColumn: "1 / span 2" }}>
+                    <div className="text-xs text-slate-600">Monthly price (cents)</div>
+                    <Input
+                      inputMode="numeric"
+                      value={newPricePerMonth}
+                      onChange={(e) => setNewPricePerMonth(e.target.value)}
+                      placeholder="e.g. 50000"
+                    />
+                  </div>
                 </div>
-                <div>
-                  <div className="text-xs text-slate-600">Contract start</div>
-                  <Input
-                    type="datetime-local"
-                    value={newContractStartDate}
-                    onChange={(e) => setNewContractStartDate(e.target.value)}
-                  />
-                </div>
-                <div>
-                  <div className="text-xs text-slate-600">Contract end</div>
-                  <Input
-                    type="datetime-local"
-                    value={newContractEndDate}
-                    onChange={(e) => setNewContractEndDate(e.target.value)}
-                  />
-                </div>
-                <div style={{ gridColumn: "1 / span 2" }}>
-                  <div className="text-xs text-slate-600">Monthly price (cents)</div>
-                  <Input
-                    inputMode="numeric"
-                    value={newPricePerMonth}
-                    onChange={(e) => setNewPricePerMonth(e.target.value)}
-                    placeholder="e.g. 50000"
-                  />
+                <div className="mt-3">
+                  <Button
+                    type="button"
+                    onClick={async () => {
+                      setCreatingLine(true);
+                      try {
+                        const res = await fetch(`/api/companies/${company.id}/lines`, {
+                          method: "POST",
+                          headers: { "content-type": "application/json" },
+                          body: JSON.stringify({
+                            name: newLineName,
+                            contractStartDate: newContractStartDate,
+                            contractEndDate: newContractEndDate,
+                            pricePerMonthCents: Math.trunc(Number(newPricePerMonth))
+                          })
+                        });
+                        const json = (await res.json()) as any;
+                        if (!res.ok || !json?.ok || !json?.line) return;
+
+                        setLines((prev) => {
+                          const nextLines = [...prev, json.line];
+                          onCompanyPatch(company.id, { lines: nextLines });
+                          return nextLines;
+                        });
+
+                        setNewLineName("");
+                        setNewPricePerMonth("");
+                      } finally {
+                        setCreatingLine(false);
+                      }
+                    }}
+                    disabled={creatingLine || !newLineName || !newContractStartDate || !newContractEndDate || !newPricePerMonth}
+                  >
+                    {creatingLine ? "Adding…" : "Add"}
+                  </Button>
                 </div>
               </div>
-              <div className="mt-3">
-                <Button
-                  type="button"
-                  onClick={async () => {
-                    setCreatingLine(true);
-                    try {
-                      const res = await fetch(`/api/companies/${company.id}/lines`, {
-                        method: "POST",
-                        headers: { "content-type": "application/json" },
-                        body: JSON.stringify({
-                          name: newLineName,
-                          contractStartDate: newContractStartDate,
-                          contractEndDate: newContractEndDate,
-                          pricePerMonthCents: Math.trunc(Number(newPricePerMonth))
-                        })
-                      });
-                      const json = (await res.json()) as any;
-                      if (!res.ok || !json?.ok || !json?.line) return;
-
-                      setLines((prev) => {
-                        const nextLines = [...prev, json.line];
-                        onCompanyPatch(company.id, { lines: nextLines });
-                        return nextLines;
-                      });
-
-                      setNewLineName("");
-                      setNewPricePerMonth("");
-                    } finally {
-                      setCreatingLine(false);
-                    }
-                  }}
-                  disabled={creatingLine || !newLineName || !newContractStartDate || !newContractEndDate || !newPricePerMonth}
-                >
-                  {creatingLine ? "Adding…" : "Add"}
-                </Button>
-              </div>
-            </div>
+            ) : null}
           </div>
         </div>
 
@@ -805,8 +875,17 @@ export function BoardClient({
   const [selectedCompanyId, setSelectedCompanyId] = useState<string | null>(null);
   const [transition, setTransition] = useState<TransitionState | null>(null);
 
+  const [createOpen, setCreateOpen] = useState(false);
+  const [createName, setCreateName] = useState("");
+  const [createNotes, setCreateNotes] = useState("");
+  const [creatingCompany, setCreatingCompany] = useState(false);
+
   function patchCompany(companyId: string, patch: Partial<CompanyCard>) {
     setCompanies((prev) => prev.map((c) => (c.id === companyId ? { ...c, ...patch } : c)));
+  }
+
+  function removeCompany(companyId: string) {
+    setCompanies((prev) => prev.filter((c) => c.id !== companyId));
   }
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }));
@@ -845,12 +924,102 @@ export function BoardClient({
     });
   }
 
+  async function createCompany() {
+    setCreatingCompany(true);
+    try {
+      const res = await fetch("/api/companies", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ name: createName, notes: createNotes })
+      });
+
+      const json = (await res.json()) as any;
+      if (!res.ok || !json?.ok || !json?.company?.id) {
+        window.alert(json?.error ?? "Failed to create lead");
+        return;
+      }
+
+      const created: CompanyCard = {
+        id: String(json.company.id),
+        name: String(json.company.name ?? createName),
+        notes: json.company.notes ?? (createNotes.trim() ? createNotes.trim() : null),
+        stage: (json.company.stage as CompanyStage) ?? "dead-lead",
+        nextOutreachDueAt: null,
+        hasDueOutreach: false,
+        hasDueReminder: false,
+        hasDueRenewal: false,
+        strategyAssigned: null,
+        contacts: [],
+        lines: []
+      };
+
+      setCompanies((prev) => [created, ...prev]);
+      setSelectedCompanyId(created.id);
+
+      setCreateOpen(false);
+      setCreateName("");
+      setCreateNotes("");
+    } finally {
+      setCreatingCompany(false);
+    }
+  }
+
   return (
     <div>
-      <div className="mb-4">
-        <h1 className="text-xl font-semibold tracking-tight text-slate-900">Leads & Clients</h1>
-        <p className="mt-1 text-sm text-slate-600">Drag company cards between columns.</p>
+      <div className="mb-4 flex items-start justify-between gap-3">
+        <div>
+          <h1 className="text-xl font-semibold tracking-tight text-slate-900">Leads & Clients</h1>
+          <p className="mt-1 text-sm text-slate-600">Drag company cards between columns.</p>
+        </div>
+        <Button type="button" onClick={() => setCreateOpen(true)}>
+          New Lead
+        </Button>
       </div>
+
+      <Dialog
+        open={createOpen}
+        onOpenChange={(v) => {
+          setCreateOpen(v);
+          if (!v) {
+            setCreateName("");
+            setCreateNotes("");
+          }
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>New lead</DialogTitle>
+            <DialogDescription>Create a new company card in Dead Leads.</DialogDescription>
+          </DialogHeader>
+
+          <div className="grid gap-3">
+            <div>
+              <div className="text-xs text-slate-600">Company name</div>
+              <Input value={createName} onChange={(e) => setCreateName(e.target.value)} />
+            </div>
+            <div>
+              <div className="text-xs text-slate-600">Notes</div>
+              <Textarea value={createNotes} onChange={(e) => setCreateNotes(e.target.value)} className="min-h-[90px]" />
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={() => {
+                  setCreateOpen(false);
+                  setCreateName("");
+                  setCreateNotes("");
+                }}
+              >
+                Cancel
+              </Button>
+              <Button type="button" onClick={createCompany} disabled={creatingCompany || !createName.trim()}>
+                {creatingCompany ? "Creating…" : "Create"}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <DndContext
         sensors={sensors}
@@ -913,6 +1082,7 @@ export function BoardClient({
           open={Boolean(selectedCompanyId)}
           onOpenChange={(v) => setSelectedCompanyId(v ? selectedCompanyId : null)}
           onCompanyPatch={patchCompany}
+          onCompanyDelete={removeCompany}
         />
       ) : null}
 
