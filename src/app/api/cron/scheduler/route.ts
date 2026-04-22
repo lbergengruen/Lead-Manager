@@ -2,7 +2,9 @@ import { NextResponse } from "next/server";
 
 import { getDb } from "@/db";
 import { ensureCadenceStepReminders } from "@/db/cadenceReminders";
+import { ensureLineRenewalReminders } from "@/db/lineRenewalReminders";
 import { ensureRenewalReminders } from "@/db/renewalReminders";
+import { ensureStageDrivenReminders } from "@/db/stageWorkflowsCore";
 
 export const dynamic = "force-dynamic";
 
@@ -20,6 +22,8 @@ export async function GET(request: Request) {
 
   const cadence = await ensureCadenceStepReminders(db);
   const renewals = await ensureRenewalReminders(db);
+  const stage = await ensureStageDrivenReminders(db);
+  const lineRenewals = await ensureLineRenewalReminders(db);
 
-  return NextResponse.json({ ok: true, cadence, renewals });
+  return NextResponse.json({ ok: true, cadence, renewals, stage, lineRenewals });
 }

@@ -44,6 +44,14 @@ export const emailDirectionEnum = pgEnum("email_direction", [
   "inbound"
 ]);
 
+export const companyStageEnum = pgEnum("company_stage", [
+  "dead-lead",
+  "contacted",
+  "evaluating-proposal",
+  "trial-30-day",
+  "client"
+]);
+
 export const renewalReminderWindows = pgTable(
   "renewal_reminder_windows",
   {
@@ -58,6 +66,215 @@ export const renewalReminderWindows = pgTable(
   },
   (t) => ({
     daysUnique: uniqueIndex("renewal_reminder_windows_days_unique").on(t.daysBeforeRenewal)
+  })
+);
+
+export const companies = pgTable(
+  "companies",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+
+    name: text("name").notNull(),
+    notes: text("notes"),
+
+    stage: companyStageEnum("stage").notNull().default("dead-lead"),
+
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow()
+  },
+  (t) => ({
+    nameUnique: uniqueIndex("companies_name_unique").on(t.name),
+    nameIdx: index("companies_name_idx").on(t.name),
+    stageIdx: index("companies_stage_idx").on(t.stage)
+  })
+);
+
+export const companyContacts = pgTable(
+  "company_contacts",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+
+    companyId: uuid("company_id")
+      .notNull()
+      .references(() => companies.id, { onDelete: "cascade" }),
+
+    name: text("name"),
+    email: text("email"),
+    phone: text("phone"),
+    role: text("role"),
+    isPrimary: boolean("is_primary").notNull().default(false),
+
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow()
+  },
+  (t) => ({
+    companyIdx: index("company_contacts_company_id_idx").on(t.companyId)
+  })
+);
+
+export const strategies = pgTable(
+  "strategies",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    name: text("name").notNull(),
+    description: text("description"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow()
+  },
+  (t) => ({
+    nameUnique: uniqueIndex("strategies_name_unique").on(t.name)
+  })
+);
+
+export const strategyEmails = pgTable(
+  "strategy_emails",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+
+    strategyId: uuid("strategy_id")
+      .notNull()
+      .references(() => strategies.id, { onDelete: "cascade" }),
+
+    stepIndex: integer("step_index").notNull(),
+    dayOffset: integer("day_offset").notNull().default(0),
+    subjectTemplate: text("subject_template").notNull(),
+    bodyTemplate: text("body_template").notNull(),
+
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow()
+  },
+  (t) => ({
+    strategyStepUnique: uniqueIndex("strategy_emails_strategy_id_step_index_unique").on(
+      t.strategyId,
+      t.stepIndex
+    ),
+    strategyIdx: index("strategy_emails_strategy_id_idx").on(t.strategyId)
+  })
+);
+
+export const companyStrategyAssignments = pgTable(
+  "company_strategy_assignments",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+
+    companyId: uuid("company_id")
+      .notNull()
+      .references(() => companies.id, { onDelete: "cascade" }),
+    strategyId: uuid("strategy_id")
+      .notNull()
+      .references(() => strategies.id, { onDelete: "cascade" }),
+
+    assignedAt: timestamp("assigned_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    currentEmailStepIndex: integer("current_email_step_index").notNull().default(0),
+    nextOutreachDueAt: timestamp("next_outreach_due_at", { withTimezone: true }),
+    lastAcknowledgedAt: timestamp("last_acknowledged_at", { withTimezone: true }),
+
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow()
+  },
+  (t) => ({
+    companyUnique: uniqueIndex("company_strategy_assignments_company_id_unique").on(t.companyId),
+    nextOutreachDueAtIdx: index("company_strategy_assignments_next_outreach_due_at_idx").on(
+      t.nextOutreachDueAt
+    )
+  })
+);
+
+export const companyLines = pgTable(
+  "company_lines",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+
+    companyId: uuid("company_id")
+      .notNull()
+      .references(() => companies.id, { onDelete: "cascade" }),
+
+    name: text("name").notNull(),
+    isInvoiced: boolean("is_invoiced").notNull().default(false),
+
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow()
+  },
+  (t) => ({
+    companyIdx: index("company_lines_company_id_idx").on(t.companyId)
+  })
+);
+
+export const lineContracts = pgTable(
+  "line_contracts",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+
+    lineId: uuid("line_id")
+      .notNull()
+      .references(() => companyLines.id, { onDelete: "cascade" }),
+
+    startDate: timestamp("start_date", { withTimezone: true }).notNull(),
+    endDate: timestamp("end_date", { withTimezone: true }).notNull(),
+    pricePerMonthCents: integer("price_per_month_cents").notNull(),
+
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow()
+  },
+  (t) => ({
+    lineIdx: index("line_contracts_line_id_idx").on(t.lineId),
+    endDateIdx: index("line_contracts_end_date_idx").on(t.endDate)
+  })
+);
+
+export const companyStageEvents = pgTable(
+  "company_stage_events",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+
+    companyId: uuid("company_id")
+      .notNull()
+      .references(() => companies.id, { onDelete: "cascade" }),
+
+    fromStage: companyStageEnum("from_stage"),
+    toStage: companyStageEnum("to_stage").notNull(),
+    occurredAt: timestamp("occurred_at", { withTimezone: true }).notNull(),
+
+    strategyId: uuid("strategy_id").references(() => strategies.id, { onDelete: "set null" }),
+    metadata: jsonb("metadata").$type<Record<string, unknown>>().notNull().default({}),
+
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow()
+  },
+  (t) => ({
+    companyIdx: index("company_stage_events_company_id_idx").on(t.companyId),
+    occurredAtIdx: index("company_stage_events_occurred_at_idx").on(t.occurredAt)
   })
 );
 
@@ -184,6 +401,11 @@ export const reminders = pgTable(
     leadId: uuid("lead_id").references(() => leads.id, { onDelete: "set null" }),
     licenseId: uuid("license_id").references(() => licenses.id, { onDelete: "set null" }),
 
+    companyId: uuid("company_id").references(() => companies.id, { onDelete: "set null" }),
+    lineContractId: uuid("line_contract_id").references(() => lineContracts.id, {
+      onDelete: "set null"
+    }),
+
     status: reminderStatusEnum("status").notNull().default("open"),
     completedAt: timestamp("completed_at", { withTimezone: true }),
 
@@ -199,7 +421,9 @@ export const reminders = pgTable(
     dueAtIdx: index("reminders_due_at_idx").on(t.dueAt),
     statusIdx: index("reminders_status_idx").on(t.status),
     leadIdx: index("reminders_lead_id_idx").on(t.leadId),
-    licenseIdx: index("reminders_license_id_idx").on(t.licenseId)
+    licenseIdx: index("reminders_license_id_idx").on(t.licenseId),
+    companyIdx: index("reminders_company_id_idx").on(t.companyId),
+    lineContractIdx: index("reminders_line_contract_id_idx").on(t.lineContractId)
   })
 );
 

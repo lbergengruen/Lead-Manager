@@ -20,21 +20,14 @@ export default function RootLayout({
       <body>
         <header className="nav">
           <div className="navInner">
-            <span className="navTitle">Lead Manager</span>
-            <Link className="navLink" href="/">
-              Home
+            <Link className="navTitle" href="/board">
+              Lead Manager
             </Link>
-            <Link className="navLink" href="/leads">
-              Leads
+            <Link className="navLink" href="/board">
+              Board
             </Link>
-            <Link className="navLink" href="/reminders">
-              Reminders
-            </Link>
-            <Link className="navLink" href="/cadences">
-              Cadences
-            </Link>
-            <Link className="navLink" href="/licenses">
-              Licenses
+            <Link className="navLink" href="/strategies">
+              Strategies
             </Link>
             <Link className="navLink" href="/settings">
               Settings

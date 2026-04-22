@@ -1,6 +1,6 @@
 # Gmail Integration
 
-## Overview
+## Purpose
 Optionally connect Gmail to send emails and record outbound activity directly from the app.
 
 ## Requirements

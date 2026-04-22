@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX "companies_name_unique" ON "companies" USING btree ("name");

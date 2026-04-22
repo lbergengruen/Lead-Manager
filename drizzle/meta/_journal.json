@@ -29,6 +29,20 @@
       "when": 1776828497016,
       "tag": "0003_luxuriant_wallow",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1776862200596,
+      "tag": "0004_perpetual_polaris",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1776862392090,
+      "tag": "0005_acoustic_lifeguard",
+      "breakpoints": true
     }
   ]
 }
