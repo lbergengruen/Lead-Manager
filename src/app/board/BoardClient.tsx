@@ -1,7 +1,7 @@
 "use client";
 
 import { DndContext, PointerSensor, useDraggable, useDroppable, useSensor, useSensors } from "@dnd-kit/core";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Bell, Mail, Receipt, RotateCw } from "lucide-react";
 
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -57,6 +57,17 @@ const STAGES: { id: CompanyStage; title: string }[] = [
   { id: "trial-30-day", title: "30 day Trial" },
   { id: "client", title: "Client" }
 ];
+
+function eurosToCents(raw: string) {
+  const normalized = String(raw).trim().replace(",", ".");
+  const n = Number(normalized);
+  if (!Number.isFinite(n)) return null;
+  return Math.round(n * 100);
+}
+
+function formatEURFromCents(cents: number) {
+  return new Intl.NumberFormat("de-DE", { style: "currency", currency: "EUR" }).format(cents / 100);
+}
 
 function StageColumn({
   stage,
@@ -200,6 +211,8 @@ function TransitionWizard({
   const needsTrialStart = toStage === "trial-30-day";
   const needsClientLine = toStage === "client" && Boolean(transition?.requiresClientLine);
 
+  const pricePerMonthCents = eurosToCents(pricePerMonth);
+
   return (
     <Dialog open={isOpen} onOpenChange={(v) => (v ? null : onCancel())}>
       <DialogContent>
@@ -279,12 +292,12 @@ function TransitionWizard({
                   />
                 </div>
                 <div style={{ gridColumn: "1 / span 2" }}>
-                  <div className="text-xs text-slate-600">Monthly price (cents)</div>
+                  <div className="text-xs text-slate-600">Monthly price (€)</div>
                   <Input
-                    inputMode="numeric"
+                    inputMode="decimal"
                     value={pricePerMonth}
                     onChange={(e) => setPricePerMonth(e.target.value)}
-                    placeholder="e.g. 50000"
+                    placeholder="e.g. 499.99"
                   />
                 </div>
               </div>
@@ -310,7 +323,7 @@ function TransitionWizard({
                         name: lineName,
                         contractStartDate,
                         contractEndDate,
-                        pricePerMonthCents: Math.trunc(Number(pricePerMonth))
+                        pricePerMonthCents: pricePerMonthCents ?? 0
                       }
                     }
                   : {})
@@ -319,7 +332,13 @@ function TransitionWizard({
             disabled={
               (needsStrategy && !strategyId) ||
               !occurredAt ||
-              (needsClientLine && (!lineName || !contractStartDate || !contractEndDate || !pricePerMonth))
+              (needsClientLine &&
+                (!lineName ||
+                  !contractStartDate ||
+                  !contractEndDate ||
+                  !pricePerMonth ||
+                  pricePerMonthCents === null ||
+                  pricePerMonthCents <= 0))
             }
           >
             Confirm
@@ -345,6 +364,8 @@ function CompanyModal({
 }) {
 
   const [isEditing, setIsEditing] = useState(false);
+
+  const lastCompanyIdRef = useRef<string | null>(null);
 
   const [name, setName] = useState(company.name);
   const [notes, setNotes] = useState(company.notes ?? "");
@@ -380,17 +401,47 @@ function CompanyModal({
   const companyLinesArr = company.lines;
 
   useEffect(() => {
-    // sync modal state when switching companies
+    // sync modal state when switching companies (but don't reset edit mode on incremental updates)
+    const switchingCompany = lastCompanyIdRef.current !== companyId;
+    if (switchingCompany) {
+      lastCompanyIdRef.current = companyId;
+      setIsEditing(false);
+      setName(companyName);
+      setNotes(companyNotes ?? "");
+      setContacts(companyContacts);
+      setOutreachDueAt(companyNextOutreachDueAt);
+      setOutreachSubject(null);
+      setOutreachBody(null);
+      setOutreachAcknowledgedAt(toDateTimeLocalValue(new Date()));
+      setLines(companyLinesArr);
+      return;
+    }
+
+    if (!open) return;
+
+    // If we're not editing, keep modal state in sync with external updates.
+    if (!isEditing) {
+      setName(companyName);
+      setNotes(companyNotes ?? "");
+      setContacts(companyContacts);
+      setOutreachDueAt(companyNextOutreachDueAt);
+      setLines(companyLinesArr);
+    }
+  }, [
+    companyId,
+    companyName,
+    companyNotes,
+    companyContacts,
+    companyNextOutreachDueAt,
+    companyLinesArr,
+    open,
+    isEditing
+  ]);
+
+  useEffect(() => {
+    if (open) return;
     setIsEditing(false);
-    setName(companyName);
-    setNotes(companyNotes ?? "");
-    setContacts(companyContacts);
-    setOutreachDueAt(companyNextOutreachDueAt);
-    setOutreachSubject(null);
-    setOutreachBody(null);
-    setOutreachAcknowledgedAt(toDateTimeLocalValue(new Date()));
-    setLines(companyLinesArr);
-  }, [companyId, companyName, companyNotes, companyContacts, companyNextOutreachDueAt, companyLinesArr]);
+  }, [open]);
 
   useEffect(() => {
     if (!open) return;
@@ -769,7 +820,7 @@ function CompanyModal({
                       <div className="mt-2 grid gap-2">
                         {l.contracts.map((c) => (
                           <div key={c.id} className="rounded-md border border-slate-200 bg-slate-50 p-2 text-xs text-slate-700">
-                            {c.startDate} → {c.endDate} · {c.pricePerMonthCents} cents/mo
+                            {c.startDate} → {c.endDate} · {formatEURFromCents(c.pricePerMonthCents)}/mo
                           </div>
                         ))}
                       </div>
@@ -804,12 +855,12 @@ function CompanyModal({
                     />
                   </div>
                   <div style={{ gridColumn: "1 / span 2" }}>
-                    <div className="text-xs text-slate-600">Monthly price (cents)</div>
+                    <div className="text-xs text-slate-600">Monthly price (€)</div>
                     <Input
-                      inputMode="numeric"
+                      inputMode="decimal"
                       value={newPricePerMonth}
                       onChange={(e) => setNewPricePerMonth(e.target.value)}
-                      placeholder="e.g. 50000"
+                      placeholder="e.g. 499.99"
                     />
                   </div>
                 </div>
@@ -817,6 +868,9 @@ function CompanyModal({
                   <Button
                     type="button"
                     onClick={async () => {
+                      const pricePerMonthCents = eurosToCents(newPricePerMonth);
+                      if (pricePerMonthCents === null || pricePerMonthCents <= 0) return;
+
                       setCreatingLine(true);
                       try {
                         const res = await fetch(`/api/companies/${company.id}/lines`, {
@@ -826,7 +880,7 @@ function CompanyModal({
                             name: newLineName,
                             contractStartDate: newContractStartDate,
                             contractEndDate: newContractEndDate,
-                            pricePerMonthCents: Math.trunc(Number(newPricePerMonth))
+                            pricePerMonthCents
                           })
                         });
                         const json = (await res.json()) as any;
@@ -844,7 +898,15 @@ function CompanyModal({
                         setCreatingLine(false);
                       }
                     }}
-                    disabled={creatingLine || !newLineName || !newContractStartDate || !newContractEndDate || !newPricePerMonth}
+                    disabled={
+                      creatingLine ||
+                      !newLineName ||
+                      !newContractStartDate ||
+                      !newContractEndDate ||
+                      !newPricePerMonth ||
+                      eurosToCents(newPricePerMonth) === null ||
+                      (eurosToCents(newPricePerMonth) ?? 0) <= 0
+                    }
                   >
                     {creatingLine ? "Adding…" : "Add"}
                   </Button>
