@@ -1,4 +1,4 @@
-import { eq, gte } from "drizzle-orm";
+import { and, eq, gte, isNull } from "drizzle-orm";
 
 import { companyLines, lineContracts, reminders } from "@/db/schema";
 
@@ -26,6 +26,17 @@ export async function ensureLineContractRenewalReminderCore(
   const idempotencyKey = `contract:renewal:${lineContractId}:${daysBeforeRenewal}`;
 
   await db
+    .update(reminders)
+    .set({ idempotencyKey, dueAt, updatedAt: new Date() })
+    .where(
+      and(
+        eq(reminders.lineContractId, lineContractId),
+        isNull(reminders.idempotencyKey),
+        eq(reminders.status, "open")
+      )
+    );
+
+  await db
     .insert(reminders)
     .values({
       companyId,
@@ -35,7 +46,13 @@ export async function ensureLineContractRenewalReminderCore(
       idempotencyKey,
       status: "open"
     })
-    .onConflictDoNothing({ target: reminders.idempotencyKey });
+    .onConflictDoUpdate({
+      target: reminders.idempotencyKey,
+      set: {
+        dueAt,
+        updatedAt: new Date()
+      }
+    });
 
   return { dueAt };
 }

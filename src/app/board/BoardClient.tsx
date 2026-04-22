@@ -39,6 +39,7 @@ export type CompanyCard = {
   name: string;
   notes: string | null;
   stage: CompanyStage;
+  commissionPercentage: number;
   nextOutreachDueAt: string | null;
   hasDueOutreach: boolean;
   hasDueReminder: boolean;
@@ -98,6 +99,12 @@ function DraggableCard({ company, onClick }: { company: CompanyCard; onClick: ()
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({ id: company.id });
 
   const hasMissingInvoice = company.lines.some((l) => !l.isInvoiced);
+  const lineCount = company.lines.length;
+  const totalMonthlyCents = company.lines.reduce(
+    (sum, l) => sum + l.contracts.reduce((cSum, c) => cSum + c.pricePerMonthCents, 0),
+    0
+  );
+  const commissionCents = Math.round((totalMonthlyCents * company.commissionPercentage) / 100);
 
   const style: React.CSSProperties = transform
     ? {
@@ -123,7 +130,14 @@ function DraggableCard({ company, onClick }: { company: CompanyCard; onClick: ()
       <div className="flex items-start justify-between gap-2">
         <div>
           <div className="text-sm font-semibold text-slate-900">{company.name}</div>
-          <div className="mt-1 text-xs text-slate-600">{company.stage}</div>
+          <div className="mt-1 text-xs text-slate-600">
+            {lineCount} {lineCount === 1 ? "line" : "lines"} · {formatEURFromCents(totalMonthlyCents)}/mo
+          </div>
+          {company.commissionPercentage > 0 ? (
+            <div className="mt-0.5 text-xs font-medium text-green-700">
+              {company.commissionPercentage}% commission · {formatEURFromCents(commissionCents)}/mo
+            </div>
+          ) : null}
         </div>
         <div className="flex items-center gap-2 text-slate-700">
           {company.hasDueOutreach ? <Mail className="h-4 w-4" /> : null}
@@ -354,21 +368,24 @@ function CompanyModal({
   open,
   onOpenChange,
   onCompanyPatch,
-  onCompanyDelete
+  onCompanyDelete,
+  isEditing,
+  onIsEditingChange
 }: {
   company: CompanyCard;
   open: boolean;
   onOpenChange: (v: boolean) => void;
   onCompanyPatch: (companyId: string, patch: Partial<CompanyCard>) => void;
   onCompanyDelete: (companyId: string) => void;
+  isEditing: boolean;
+  onIsEditingChange: (v: boolean) => void;
 }) {
-
-  const [isEditing, setIsEditing] = useState(false);
 
   const lastCompanyIdRef = useRef<string | null>(null);
 
   const [name, setName] = useState(company.name);
   const [notes, setNotes] = useState(company.notes ?? "");
+  const [commissionPercentage, setCommissionPercentage] = useState(String(company.commissionPercentage));
   const [savingCompany, setSavingCompany] = useState(false);
   const [deletingCompany, setDeletingCompany] = useState(false);
 
@@ -392,9 +409,16 @@ function CompanyModal({
   const [newContractEndDate, setNewContractEndDate] = useState(toDateTimeLocalValue(new Date()));
   const [newPricePerMonth, setNewPricePerMonth] = useState("");
 
+  const [editingContractId, setEditingContractId] = useState<string | null>(null);
+  const [editingContractStart, setEditingContractStart] = useState("");
+  const [editingContractEnd, setEditingContractEnd] = useState("");
+  const [editingContractPrice, setEditingContractPrice] = useState("");
+  const [savingContract, setSavingContract] = useState(false);
+
   const companyId = company.id;
   const companyName = company.name;
   const companyNotes = company.notes;
+  const companyCommissionPercentage = company.commissionPercentage;
   const companyContacts = company.contacts;
   const companyNextOutreachDueAt = company.nextOutreachDueAt;
   const companyStrategyId = company.strategyAssigned?.id;
@@ -402,12 +426,13 @@ function CompanyModal({
 
   useEffect(() => {
     // sync modal state when switching companies (but don't reset edit mode on incremental updates)
-    const switchingCompany = lastCompanyIdRef.current !== companyId;
+    const switchingCompany = lastCompanyIdRef.current !== null && lastCompanyIdRef.current !== companyId;
+    lastCompanyIdRef.current = companyId;
     if (switchingCompany) {
-      lastCompanyIdRef.current = companyId;
-      setIsEditing(false);
+      onIsEditingChange(false);
       setName(companyName);
       setNotes(companyNotes ?? "");
+      setCommissionPercentage(String(companyCommissionPercentage));
       setContacts(companyContacts);
       setOutreachDueAt(companyNextOutreachDueAt);
       setOutreachSubject(null);
@@ -423,6 +448,7 @@ function CompanyModal({
     if (!isEditing) {
       setName(companyName);
       setNotes(companyNotes ?? "");
+      setCommissionPercentage(String(companyCommissionPercentage));
       setContacts(companyContacts);
       setOutreachDueAt(companyNextOutreachDueAt);
       setLines(companyLinesArr);
@@ -431,17 +457,14 @@ function CompanyModal({
     companyId,
     companyName,
     companyNotes,
+    companyCommissionPercentage,
     companyContacts,
     companyNextOutreachDueAt,
     companyLinesArr,
     open,
-    isEditing
+    isEditing,
+    onIsEditingChange
   ]);
-
-  useEffect(() => {
-    if (open) return;
-    setIsEditing(false);
-  }, [open]);
 
   useEffect(() => {
     if (!open) return;
@@ -459,15 +482,21 @@ function CompanyModal({
   }, [open, companyId, companyStrategyId, companyNextOutreachDueAt]);
 
   async function saveCompany() {
+    const commissionPct = Math.trunc(Number(commissionPercentage));
+    if (Number.isNaN(commissionPct) || commissionPct < 0 || commissionPct > 100) {
+      window.alert("Commission must be between 0 and 100");
+      return;
+    }
+
     setSavingCompany(true);
     try {
       await fetch(`/api/companies/${company.id}`, {
         method: "PATCH",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ name, notes })
+        body: JSON.stringify({ name, notes, commissionPercentage: commissionPct })
       });
 
-      onCompanyPatch(company.id, { name, notes });
+      onCompanyPatch(company.id, { name, notes, commissionPercentage: commissionPct });
     } finally {
       setSavingCompany(false);
     }
@@ -544,6 +573,75 @@ function CompanyModal({
     await fetch(`/api/contacts/${id}`, { method: "DELETE" });
   }
 
+  async function updateLine(id: string, patch: Partial<CompanyLine>) {
+    setLines((prev) => {
+      const nextLines = prev.map((l) => (l.id === id ? { ...l, ...patch } : l));
+      onCompanyPatch(company.id, { lines: nextLines });
+      return nextLines;
+    });
+
+    await fetch(`/api/lines/${id}`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(patch)
+    });
+  }
+
+  async function deleteLine(id: string) {
+    const ok = window.confirm("Delete this line?");
+    if (!ok) return;
+
+    setLines((prev) => {
+      const nextLines = prev.filter((l) => l.id !== id);
+      onCompanyPatch(company.id, { lines: nextLines });
+      return nextLines;
+    });
+
+    await fetch(`/api/lines/${id}`, { method: "DELETE" });
+  }
+
+  async function saveContract(contractId: string) {
+    const pricePerMonthCents = eurosToCents(editingContractPrice);
+    if (pricePerMonthCents === null || pricePerMonthCents <= 0) return;
+
+    setSavingContract(true);
+    try {
+      const res = await fetch(`/api/line-contracts/${contractId}`, {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          contractStartDate: editingContractStart,
+          contractEndDate: editingContractEnd,
+          pricePerMonthCents
+        })
+      });
+
+      if (!res.ok) return;
+
+      setLines((prev) => {
+        const nextLines = prev.map((l) => ({
+          ...l,
+          contracts: l.contracts.map((c) =>
+            c.id === contractId
+              ? {
+                  ...c,
+                  startDate: new Date(editingContractStart).toISOString(),
+                  endDate: new Date(editingContractEnd).toISOString(),
+                  pricePerMonthCents
+                }
+              : c
+          )
+        }));
+        onCompanyPatch(company.id, { lines: nextLines });
+        return nextLines;
+      });
+
+      setEditingContractId(null);
+    } finally {
+      setSavingContract(false);
+    }
+  }
+
   const dueOutreach = outreachDueAt ? new Date(outreachDueAt) <= new Date() : false;
 
   async function acknowledgeOutreach() {
@@ -580,9 +678,10 @@ function CompanyModal({
                   type="button"
                   variant="secondary"
                   onClick={() => {
-                    setIsEditing(false);
+                    onIsEditingChange(false);
                     setName(companyName);
                     setNotes(companyNotes ?? "");
+                    setCommissionPercentage(String(companyCommissionPercentage));
                     setContacts(companyContacts);
                     setLines(companyLinesArr);
                   }}
@@ -590,7 +689,7 @@ function CompanyModal({
                   Cancel
                 </Button>
               ) : (
-                <Button type="button" variant="secondary" onClick={() => setIsEditing(true)}>
+                <Button type="button" variant="secondary" onClick={() => onIsEditingChange(true)}>
                   Edit
                 </Button>
               )}
@@ -616,6 +715,18 @@ function CompanyModal({
                   readOnly={!isEditing}
                   onChange={(e) => setNotes(e.target.value)}
                   className="min-h-[90px]"
+                />
+              </div>
+              <div>
+                <div className="text-xs text-slate-600">Commission (%)</div>
+                <Input
+                  type="number"
+                  min="0"
+                  max="100"
+                  value={commissionPercentage}
+                  readOnly={!isEditing}
+                  onChange={(e) => setCommissionPercentage(e.target.value)}
+                  placeholder="0-100"
                 />
               </div>
               {isEditing ? (
@@ -790,39 +901,119 @@ function CompanyModal({
                 {lines.map((l) => (
                   <div key={l.id} className="rounded-lg border border-slate-200 bg-white p-3">
                     <div className="flex items-center justify-between gap-3">
-                      <div className="text-sm font-medium text-slate-900">{l.name}</div>
+                      {isEditing ? (
+                        <Input
+                          value={l.name}
+                          onChange={(e) => updateLine(l.id, { name: e.target.value })}
+                          className="h-8"
+                        />
+                      ) : (
+                        <div className="text-sm font-medium text-slate-900">{l.name}</div>
+                      )}
                       <label className="flex items-center gap-2 text-xs text-slate-700">
                         <input
                           type="checkbox"
                           checked={l.isInvoiced}
-                          disabled={!isEditing}
                           onChange={async (e) => {
-                            if (!isEditing) return;
-                            const next = e.target.checked;
-                            setLines((prev) => {
-                              const nextLines = prev.map((x) => (x.id === l.id ? { ...x, isInvoiced: next } : x));
-                              onCompanyPatch(company.id, { lines: nextLines });
-                              return nextLines;
-                            });
-                            await fetch(`/api/lines/${l.id}`, {
-                              method: "PATCH",
-                              headers: { "content-type": "application/json" },
-                              body: JSON.stringify({ isInvoiced: next })
-                            });
+                            await updateLine(l.id, { isInvoiced: e.target.checked });
                           }}
                         />
                         Invoiced
                       </label>
                     </div>
+
+                    {isEditing ? (
+                      <div className="mt-2 flex justify-end">
+                        <Button variant="danger" type="button" onClick={() => deleteLine(l.id)}>
+                          Delete line
+                        </Button>
+                      </div>
+                    ) : null}
                     {l.contracts.length === 0 ? (
                       <div className="mt-1 text-sm text-slate-600">No contracts.</div>
                     ) : (
                       <div className="mt-2 grid gap-2">
-                        {l.contracts.map((c) => (
-                          <div key={c.id} className="rounded-md border border-slate-200 bg-slate-50 p-2 text-xs text-slate-700">
-                            {c.startDate} → {c.endDate} · {formatEURFromCents(c.pricePerMonthCents)}/mo
-                          </div>
-                        ))}
+                        {l.contracts.map((c) => {
+                          const isEditingThisContract = isEditing && editingContractId === c.id;
+                          return (
+                            <div key={c.id} className="rounded-md border border-slate-200 bg-slate-50 p-2 text-xs text-slate-700">
+                              {isEditingThisContract ? (
+                                <div className="grid gap-2">
+                                  <div className="grid gap-2" style={{ gridTemplateColumns: "1fr 1fr" }}>
+                                    <div>
+                                      <div className="text-xs text-slate-600">Start</div>
+                                      <Input
+                                        type="datetime-local"
+                                        value={editingContractStart}
+                                        onChange={(e) => setEditingContractStart(e.target.value)}
+                                      />
+                                    </div>
+                                    <div>
+                                      <div className="text-xs text-slate-600">End</div>
+                                      <Input
+                                        type="datetime-local"
+                                        value={editingContractEnd}
+                                        onChange={(e) => setEditingContractEnd(e.target.value)}
+                                      />
+                                    </div>
+                                    <div style={{ gridColumn: "1 / span 2" }}>
+                                      <div className="text-xs text-slate-600">Monthly price (€)</div>
+                                      <Input
+                                        inputMode="decimal"
+                                        value={editingContractPrice}
+                                        onChange={(e) => setEditingContractPrice(e.target.value)}
+                                        placeholder="e.g. 499.99"
+                                      />
+                                    </div>
+                                  </div>
+                                  <div className="flex justify-end gap-2">
+                                    <Button
+                                      type="button"
+                                      variant="secondary"
+                                      onClick={() => setEditingContractId(null)}
+                                      disabled={savingContract}
+                                    >
+                                      Cancel
+                                    </Button>
+                                    <Button
+                                      type="button"
+                                      onClick={() => saveContract(c.id)}
+                                      disabled={
+                                        savingContract ||
+                                        !editingContractStart ||
+                                        !editingContractEnd ||
+                                        eurosToCents(editingContractPrice) === null ||
+                                        (eurosToCents(editingContractPrice) ?? 0) <= 0
+                                      }
+                                    >
+                                      {savingContract ? "Saving…" : "Save"}
+                                    </Button>
+                                  </div>
+                                </div>
+                              ) : (
+                                <div className="flex items-center justify-between gap-2">
+                                  <div>
+                                    {c.startDate} → {c.endDate} · {formatEURFromCents(c.pricePerMonthCents)}/mo
+                                  </div>
+                                  {isEditing ? (
+                                    <Button
+                                      type="button"
+                                      variant="secondary"
+                                      onClick={() => {
+                                        setEditingContractId(c.id);
+                                        setEditingContractStart(toDateTimeLocalValue(new Date(c.startDate)));
+                                        setEditingContractEnd(toDateTimeLocalValue(new Date(c.endDate)));
+                                        setEditingContractPrice(String((c.pricePerMonthCents / 100).toFixed(2)));
+                                      }}
+                                    >
+                                      Edit
+                                    </Button>
+                                  ) : null}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
                       </div>
                     )}
                   </div>
@@ -937,6 +1128,8 @@ export function BoardClient({
   const [selectedCompanyId, setSelectedCompanyId] = useState<string | null>(null);
   const [transition, setTransition] = useState<TransitionState | null>(null);
 
+  const [editingCompanyId, setEditingCompanyId] = useState<string | null>(null);
+
   const [createOpen, setCreateOpen] = useState(false);
   const [createName, setCreateName] = useState("");
   const [createNotes, setCreateNotes] = useState("");
@@ -1006,6 +1199,7 @@ export function BoardClient({
         name: String(json.company.name ?? createName),
         notes: json.company.notes ?? (createNotes.trim() ? createNotes.trim() : null),
         stage: (json.company.stage as CompanyStage) ?? "dead-lead",
+        commissionPercentage: 0,
         nextOutreachDueAt: null,
         hasDueOutreach: false,
         hasDueReminder: false,
@@ -1017,6 +1211,7 @@ export function BoardClient({
 
       setCompanies((prev) => [created, ...prev]);
       setSelectedCompanyId(created.id);
+      setEditingCompanyId(null);
 
       setCreateOpen(false);
       setCreateName("");
@@ -1130,7 +1325,10 @@ export function BoardClient({
                 <DraggableCard
                   key={c.id}
                   company={c}
-                  onClick={() => setSelectedCompanyId(c.id)}
+                  onClick={() => {
+                    setSelectedCompanyId(c.id);
+                    setEditingCompanyId(null);
+                  }}
                 />
               ))}
             </StageColumn>
@@ -1142,9 +1340,15 @@ export function BoardClient({
         <CompanyModal
           company={selected}
           open={Boolean(selectedCompanyId)}
-          onOpenChange={(v) => setSelectedCompanyId(v ? selectedCompanyId : null)}
+          onOpenChange={(v) => {
+            if (v) return;
+            setSelectedCompanyId(null);
+            setEditingCompanyId(null);
+          }}
           onCompanyPatch={patchCompany}
           onCompanyDelete={removeCompany}
+          isEditing={editingCompanyId === selected.id}
+          onIsEditingChange={(v) => setEditingCompanyId(v ? selected.id : null)}
         />
       ) : null}
 

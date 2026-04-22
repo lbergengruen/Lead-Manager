@@ -76,6 +76,7 @@ export const companies = pgTable(
 
     name: text("name").notNull(),
     notes: text("notes"),
+    commissionPercentage: integer("commission_percentage").notNull().default(0),
 
     stage: companyStageEnum("stage").notNull().default("dead-lead"),
 

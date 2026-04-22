@@ -11,10 +11,15 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
-  const body = (await request.json()) as { name?: string; notes?: string | null };
+  const body = (await request.json()) as { name?: string; notes?: string | null; commissionPercentage?: number };
 
   const name = body.name !== undefined ? String(body.name).trim() : undefined;
   const notes = body.notes !== undefined ? (String(body.notes).trim() || null) : undefined;
+  const commissionPercentage = body.commissionPercentage !== undefined ? Math.trunc(Number(body.commissionPercentage)) : undefined;
+
+  if (commissionPercentage !== undefined && (commissionPercentage < 0 || commissionPercentage > 100)) {
+    return NextResponse.json({ error: "commissionPercentage must be between 0 and 100" }, { status: 400 });
+  }
 
   if (name !== undefined && !name) {
     return NextResponse.json({ error: "name cannot be empty" }, { status: 400 });
@@ -38,6 +43,7 @@ export async function PATCH(
     .set({
       ...(name !== undefined ? { name } : {}),
       ...(notes !== undefined ? { notes } : {}),
+      ...(commissionPercentage !== undefined ? { commissionPercentage } : {}),
       updatedAt: new Date()
     })
     .where(eq(companies.id, id));

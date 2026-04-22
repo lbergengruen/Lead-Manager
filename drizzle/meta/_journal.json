@@ -43,6 +43,13 @@
       "when": 1776862392090,
       "tag": "0005_acoustic_lifeguard",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1776870514778,
+      "tag": "0006_windy_edwin_jarvis",
+      "breakpoints": true
     }
   ]
 }

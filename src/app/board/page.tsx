@@ -19,13 +19,15 @@ export default async function BoardPage() {
   const db = getDb();
 
   const now = new Date();
+  const renewalWindowMs = 1000 * 60 * 60 * 24 * 30;
 
   const companyRows = await db
     .select({
       id: companies.id,
       name: companies.name,
       notes: companies.notes,
-      stage: companies.stage
+      stage: companies.stage,
+      commissionPercentage: companies.commissionPercentage
     })
     .from(companies)
     .orderBy(asc(companies.name))
@@ -127,15 +129,20 @@ export default async function BoardPage() {
     const coContacts = contactsByCompany.get(co.id) ?? [];
     const coLines = linesByCompany.get(co.id) ?? [];
 
+    const hasDueRenewalFromContracts = coLines.some((l) =>
+      (contractsByLine.get(l.id) ?? []).some((ct) => ct.endDate.getTime() - renewalWindowMs <= now.getTime())
+    );
+
     return {
       id: co.id,
       name: co.name,
       notes: co.notes,
       stage: co.stage as any,
+      commissionPercentage: co.commissionPercentage,
       nextOutreachDueAt: null,
       hasDueOutreach: false,
       hasDueReminder: false,
-      hasDueRenewal: false,
+      hasDueRenewal: hasDueRenewalFromContracts,
       strategyAssigned: null,
       contacts: coContacts.map((c) => ({
         id: c.id,
@@ -191,7 +198,7 @@ export default async function BoardPage() {
       c.strategyAssigned = { id: a.strategyId, name: strategyNameById.get(a.strategyId) ?? a.strategyId };
     }
     c.hasDueReminder = dueReminderByCompany.get(c.id) ?? false;
-    c.hasDueRenewal = dueRenewalByCompany.get(c.id) ?? false;
+    c.hasDueRenewal = c.hasDueRenewal || (dueRenewalByCompany.get(c.id) ?? false);
   }
 
   return <BoardClient initialCompanies={initialCompanies} strategies={strategyRows} />;

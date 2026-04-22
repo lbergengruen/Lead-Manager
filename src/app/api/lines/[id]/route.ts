@@ -44,3 +44,26 @@ export async function PATCH(
 
   return NextResponse.json({ ok: true });
 }
+
+export async function DELETE(
+  _request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const { id } = await params;
+
+  const db = getDb();
+
+  const existing = await db
+    .select({ id: companyLines.id })
+    .from(companyLines)
+    .where(eq(companyLines.id, id))
+    .limit(1)
+    .then((r) => r[0]);
+
+  if (!existing) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
+
+  await db.delete(companyLines).where(eq(companyLines.id, id));
+  return NextResponse.json({ ok: true });
+}
