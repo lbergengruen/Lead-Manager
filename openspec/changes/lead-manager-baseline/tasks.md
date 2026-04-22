@@ -21,18 +21,18 @@
 
 ## 4. Reminders (follow-ups)
 
-- [ ] 4.1 Implement reminders list views (overdue/today/upcoming)
-- [ ] 4.2 Implement create reminder linked to lead/license or unattached
-- [ ] 4.3 Implement snooze and mark-as-done flows
-- [ ] 4.4 Verification: create an overdue reminder and confirm it appears in the overdue view
+- [x] 4.1 Implement reminders list views (overdue/today/upcoming)
+- [x] 4.2 Implement create reminder linked to lead/license or unattached
+- [x] 4.3 Implement snooze and mark-as-done flows
+- [x] 4.4 Verification: create an overdue reminder and confirm it appears in the overdue view
 
 ## 5. Email cadences (strategies)
 
-- [ ] 5.1 Implement cadence CRUD (cadence + ordered steps)
-- [ ] 5.2 Implement enroll lead into cadence and compute first `nextStepDueAt`
-- [ ] 5.3 Implement "mark step as sent" to advance enrollment and recompute next due date
-- [ ] 5.4 Add manual outbound email logging tied to leads and cadence steps
-- [ ] 5.5 Verification: enroll a lead, mark step 0 sent, and confirm step 1 becomes due later
+- [x] 5.1 Implement cadence CRUD (cadence + ordered steps)
+- [x] 5.2 Implement enroll lead into cadence and compute first `nextStepDueAt`
+- [x] 5.3 Implement "mark step as sent" to advance enrollment and recompute next due date
+- [x] 5.4 Add manual outbound email logging tied to leads and cadence steps
+- [x] 5.5 Verification: enroll a lead, mark step 0 sent, and confirm step 1 becomes due later
 
 ## 6. License renewals
 
