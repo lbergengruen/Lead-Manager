@@ -1,0 +1,30 @@
+schema: spec-driven
+
+context: |
+  Product: Lead Manager
+  Goal: Help manage the commercial side of the company (leads, outreach follow-ups, license renewals).
+
+  Deployment: Vercel (free tier)
+  App type: Web app
+
+  Target stack (initial assumption; can evolve):
+  - Frontend: Next.js (App Router) + TypeScript
+  - Backend: Next.js Route Handlers / Server Actions
+  - Database: Postgres (managed; Vercel Postgres or equivalent)
+  - Scheduling: Vercel Cron or equivalent scheduled jobs
+  - Email: Optional Gmail OAuth2 integration for sending + logging
+
+rules:
+  proposal:
+    - Clearly state intent, scope, non-goals, and success criteria.
+    - Call out any data migration or backfill needs.
+  specs:
+    - Use RFC 2119 language (SHALL/SHOULD/MAY).
+    - Use Given/When/Then scenarios for user-visible behavior.
+    - Specify edge cases and failure behavior.
+  design:
+    - Include data model changes and external integration details.
+    - Describe background job scheduling and idempotency.
+  tasks:
+    - Keep tasks atomic and testable.
+    - Include verification steps where applicable.
