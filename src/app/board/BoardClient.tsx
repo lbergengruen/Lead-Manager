@@ -130,32 +130,34 @@ function DraggableCard({ company, onClick }: { company: CompanyCard; onClick: ()
         (isDragging ? "opacity-60" : "")
       }
     >
-      <div className="flex items-start justify-between gap-2 min-w-0">
-        <div className="flex-1 min-w-0 overflow-hidden">
+      <div className="min-w-0">
+        {/* Header row: Name + Line count badge + Icons */}
+        <div className="flex items-center justify-between gap-2">
           <div className="text-sm font-semibold text-slate-900 truncate">{company.name}</div>
-          {isClient && (
-            <div className="mt-1 flex items-center gap-1 text-[11px] leading-tight">
-              <span className="font-medium text-slate-700">{formatEURFromCents(totalMonthlyCents)}</span>
-              <span className="text-slate-400">·</span>
-              <span className="text-slate-500">{company.commissionPercentage}%</span>
-              <span className="text-slate-400">→</span>
-              <span className="font-semibold text-green-700">{formatEURFromCents(netEarningsCents)}</span>
+          <div className="flex items-center gap-1.5 shrink-0">
+            {isClient && lineCount > 0 && (
+              <div className="flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded bg-slate-100 text-[11px] font-semibold text-slate-700 leading-none">
+                {lineCount}
+              </div>
+            )}
+            <div className="flex items-center gap-1 text-slate-500">
+              {company.hasDueOutreach ? <Mail className="h-3 w-3" /> : null}
+              {company.hasDueReminder ? <Bell className="h-3 w-3" /> : null}
+              {company.hasDueRenewal ? <RotateCw className="h-3 w-3" /> : null}
+              {hasMissingInvoice ? <Receipt className="h-3 w-3" /> : null}
             </div>
-          )}
-        </div>
-        <div className="flex flex-col items-end gap-1 shrink-0">
-          {isClient && (
-            <div className="flex items-center justify-center min-w-[20px] h-4 px-1 rounded bg-slate-100 text-[11px] font-semibold text-slate-700">
-              {lineCount}
-            </div>
-          )}
-          <div className="flex items-center gap-1 text-slate-500">
-            {company.hasDueOutreach ? <Mail className="h-3 w-3" /> : null}
-            {company.hasDueReminder ? <Bell className="h-3 w-3" /> : null}
-            {company.hasDueRenewal ? <RotateCw className="h-3 w-3" /> : null}
-            {hasMissingInvoice ? <Receipt className="h-3 w-3" /> : null}
           </div>
         </div>
+        {/* Financial row for clients */}
+        {isClient && totalMonthlyCents > 0 && (
+          <div className="mt-1.5 flex items-center gap-1 text-[11px] text-slate-600">
+            <span className="font-medium">{formatEURFromCents(totalMonthlyCents)}</span>
+            <span className="text-slate-400">·</span>
+            <span>{company.commissionPercentage}%</span>
+            <span className="text-slate-400">·</span>
+            <span className="font-semibold text-green-700">{formatEURFromCents(netEarningsCents)}</span>
+          </div>
+        )}
       </div>
     </button>
   );
