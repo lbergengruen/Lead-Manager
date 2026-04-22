@@ -3,14 +3,14 @@
 - [x] 1.1 Create a Next.js (App Router) + TypeScript app skeleton suitable for Vercel deployment
 - [x] 1.2 Add formatting/linting defaults (ESLint) and ensure the app builds locally
 - [x] 1.3 Add environment variable conventions for DB + optional Gmail integration
-- [ ] 1.4 Verification: deploy a hello-world build to Vercel and confirm it loads
+- [x] 1.4 Verification: deploy a hello-world build to Vercel and confirm it loads
 
 ## 2. Database and core data model
 
-- [ ] 2.1 Choose DB access layer (ORM/query builder) and set up Postgres connectivity
-- [ ] 2.2 Implement migrations/schema for Leads, Reminders, Cadences, CadenceSteps, Enrollments, Clients, Licenses, and EmailActivity
-- [ ] 2.3 Seed minimal sample data for local development
-- [ ] 2.4 Verification: create and query a lead record end-to-end from the app
+- [x] 2.1 Choose DB access layer (ORM/query builder) and set up Postgres connectivity
+- [x] 2.2 Implement migrations/schema for Leads, Reminders, Cadences, CadenceSteps, Enrollments, Clients, Licenses, and EmailActivity
+- [x] 2.3 Seed minimal sample data for local development
+- [x] 2.4 Verification: create and query a lead record end-to-end from the app
 
 ## 3. Leads (CRUD + status + search)
 
