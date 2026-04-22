@@ -14,10 +14,10 @@
 
 ## 3. Leads (CRUD + status + search)
 
-- [ ] 3.1 Implement Lead create/edit/delete (soft delete) and details view
-- [ ] 3.2 Implement leads list and search by name/company/email
-- [ ] 3.3 Implement lead status updates and display status in list
-- [ ] 3.4 Verification: create 3 leads, search, update status, and confirm persistence
+- [x] 3.1 Implement Lead create/edit/delete (soft delete) and details view
+- [x] 3.2 Implement leads list and search by name/company/email
+- [x] 3.3 Implement lead status updates and display status in list
+- [x] 3.4 Verification: create 3 leads, search, update status, and confirm persistence
 
 ## 4. Reminders (follow-ups)
 

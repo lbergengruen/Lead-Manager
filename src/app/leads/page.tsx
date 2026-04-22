@@ -1,5 +1,6 @@
 import { and, desc, ilike, isNull, or } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
+import Link from "next/link";
 
 import { getDb } from "@/db";
 import { seedDatabase } from "@/db/seed";
@@ -154,7 +155,7 @@ export default async function LeadsPage({
         ) : (
           <div style={{ display: "grid", gap: 10 }}>
             {rows.map((r: (typeof rows)[number]) => (
-              <div key={r.id} className="card">
+              <Link key={r.id} className="card" href={`/leads/${r.id}`}>
                 <div style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
                   <div>
                     <div className="cardTitle">{r.name ?? r.company ?? "(Unnamed lead)"}</div>
@@ -167,7 +168,7 @@ export default async function LeadsPage({
                     <div style={{ fontSize: 12, color: "#475569" }}>{r.status}</div>
                   </div>
                 </div>
-              </div>
+              </Link>
             ))}
           </div>
         )}
