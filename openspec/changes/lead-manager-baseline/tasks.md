@@ -36,22 +36,22 @@
 
 ## 6. License renewals
 
-- [ ] 6.1 Implement Client CRUD and License CRUD
-- [ ] 6.2 Implement renewal reminder windows configuration (e.g., 60/30/7)
-- [ ] 6.3 Implement renewal reminders generation logic (idempotent)
-- [ ] 6.4 Verification: create a license renewing in 30 days and confirm a 30-day reminder exists
+- [x] 6.1 Implement Client CRUD and License CRUD
+- [x] 6.2 Implement renewal reminder windows configuration (e.g., 60/30/7)
+- [x] 6.3 Implement renewal reminders generation logic (idempotent)
+- [x] 6.4 Verification: create a license renewing in 30 days and confirm a 30-day reminder exists
 
 ## 7. Scheduling (Cron) + idempotency
 
-- [ ] 7.1 Add a scheduled job endpoint (or server-side job) to evaluate cadence enrollments and ensure next-step reminders exist
-- [ ] 7.2 Add scheduled logic to evaluate licenses and ensure renewal reminders exist
-- [ ] 7.3 Implement idempotency keys/constraints to prevent duplicate reminders
-- [ ] 7.4 Verification: run the scheduler twice and confirm no duplicates are created
+- [x] 7.1 Add a scheduled job endpoint (or server-side job) to evaluate cadence enrollments and ensure next-step reminders exist
+- [x] 7.2 Add scheduled logic to evaluate licenses and ensure renewal reminders exist
+- [x] 7.3 Implement idempotency keys/constraints to prevent duplicate reminders
+- [x] 7.4 Verification: run the scheduler twice and confirm no duplicates are created
 
 ## 8. Gmail integration (optional, gated)
 
-- [ ] 8.1 Add feature flag/config gating so the app runs without Gmail configured
-- [ ] 8.2 Implement Gmail OAuth2 connect/disconnect flow (store tokens securely)
-- [ ] 8.3 Implement compose UI pre-filled from cadence step templates when Gmail is enabled
-- [ ] 8.4 Implement send-email flow with confirmation and outbound activity logging
+- [x] 8.1 Add feature flag/config gating so the app runs without Gmail configured
+- [x] 8.2 Implement Gmail OAuth2 connect/disconnect flow (store tokens securely)
+- [x] 8.3 Implement compose UI pre-filled from cadence step templates when Gmail is enabled
+- [x] 8.4 Implement send-email flow with confirmation and outbound activity logging
 - [ ] 8.5 Verification: connect Gmail in a dev environment and send a test email, confirming it is logged

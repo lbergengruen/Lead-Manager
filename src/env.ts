@@ -4,5 +4,6 @@ export const env = {
   gmailEnabled: process.env.GMAIL_ENABLED === "true",
   googleClientId: process.env.GOOGLE_CLIENT_ID,
   googleClientSecret: process.env.GOOGLE_CLIENT_SECRET,
-  googleRedirectUri: process.env.GOOGLE_REDIRECT_URI
+  googleRedirectUri: process.env.GOOGLE_REDIRECT_URI,
+  oauthEncryptionKey: process.env.OAUTH_ENCRYPTION_KEY
 };

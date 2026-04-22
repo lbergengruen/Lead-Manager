@@ -11,6 +11,8 @@ import {
   leadCadenceEnrollments,
   leads
 } from "@/db/schema";
+import { env } from "@/env";
+import { isGoogleConnected } from "@/gmail/oauth";
 
 export const dynamic = "force-dynamic";
 
@@ -317,6 +319,8 @@ export default async function CadenceDetailsPage({
     .orderBy(desc(leads.createdAt))
     .limit(50);
 
+  const gmailConnected = env.gmailEnabled ? await isGoogleConnected() : false;
+
   return (
     <div>
       <div style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
@@ -483,6 +487,15 @@ export default async function CadenceDetailsPage({
                       <form action={markStepSent.bind(null, e.id)}>
                         <button type="submit">Mark due step sent</button>
                       </form>
+                    ) : null}
+
+                    {env.gmailEnabled && gmailConnected && !e.completedAt ? (
+                      <Link
+                        className="navLink"
+                        href={`/gmail/compose?enrollmentId=${e.id}`}
+                      >
+                        Compose via Gmail
+                      </Link>
                     ) : null}
                   </div>
                 </div>

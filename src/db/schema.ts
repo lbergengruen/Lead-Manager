@@ -44,6 +44,41 @@ export const emailDirectionEnum = pgEnum("email_direction", [
   "inbound"
 ]);
 
+export const renewalReminderWindows = pgTable(
+  "renewal_reminder_windows",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    daysBeforeRenewal: integer("days_before_renewal").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow()
+  },
+  (t) => ({
+    daysUnique: uniqueIndex("renewal_reminder_windows_days_unique").on(t.daysBeforeRenewal)
+  })
+);
+
+export const oauthCredentials = pgTable(
+  "oauth_credentials",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    provider: text("provider").notNull(),
+    encryptedTokens: text("encrypted_tokens").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow()
+  },
+  (t) => ({
+    providerUnique: uniqueIndex("oauth_credentials_provider_unique").on(t.provider)
+  })
+);
+
 export const leads = pgTable(
   "leads",
   {
@@ -141,6 +176,8 @@ export const reminders = pgTable(
   {
     id: uuid("id").defaultRandom().primaryKey(),
 
+    idempotencyKey: text("idempotency_key"),
+
     title: text("title").notNull(),
     dueAt: timestamp("due_at", { withTimezone: true }).notNull(),
 
@@ -158,6 +195,7 @@ export const reminders = pgTable(
       .defaultNow()
   },
   (t) => ({
+    idempotencyKeyUnique: uniqueIndex("reminders_idempotency_key_unique").on(t.idempotencyKey),
     dueAtIdx: index("reminders_due_at_idx").on(t.dueAt),
     statusIdx: index("reminders_status_idx").on(t.status),
     leadIdx: index("reminders_lead_id_idx").on(t.leadId),
